@@ -6,7 +6,7 @@
     "architecture": {
         "64bit": {
             "url": "https://github.com/djs-zmtc/ImgScaleAndExport/releases/download/v0.1.0/ImgScaleAndExport-v0.1.0-win64.zip",
-            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+            "hash": "139af5126f29230c08595295294e347f75d3851fcd020c570a86c83c97ff2904"
         }
     },
     "bin": "ImgScaleAndExport.exe",

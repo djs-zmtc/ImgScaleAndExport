@@ -21,6 +21,9 @@ coverage.xml
 .ruff_cache/
 .mypy_cache/
 
+scratch/
+!/scratch/.gitkeep
+
 # IDE / OS
 .idea/
 .vscode/

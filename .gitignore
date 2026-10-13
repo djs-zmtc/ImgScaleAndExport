@@ -21,8 +21,9 @@ coverage.xml
 .ruff_cache/
 .mypy_cache/
 
-scratch/
-!/scratch/.gitkeep
+scratch/*
+!scratch/**/
+!scratch/**/.gitkeep
 
 # IDE / OS
 .idea/

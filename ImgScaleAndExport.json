@@ -1,0 +1,23 @@
+{
+    "version": "0.1.0",
+    "description": "Proportionally resize PNG images and optionally convert them to JPG.",
+    "homepage": "https://github.com/djs-zmtc/ImgScaleAndExport",
+    "license": "Unknown",
+    "architecture": {
+        "64bit": {
+            "url": "https://github.com/djs-zmtc/ImgScaleAndExport/releases/download/v0.1.0/ImgScaleAndExport-v0.1.0-win64.zip",
+            "hash": "0000000000000000000000000000000000000000000000000000000000000000"
+        }
+    },
+    "bin": "ImgScaleAndExport.exe",
+    "checkver": {
+        "github": "https://github.com/djs-zmtc/ImgScaleAndExport"
+    },
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/djs-zmtc/ImgScaleAndExport/releases/download/v$version/ImgScaleAndExport-v$version-win64.zip"
+            }
+        }
+    }
+}

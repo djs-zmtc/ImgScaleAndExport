@@ -1,0 +1,64 @@
+name: Release
+
+# Pushing a strict vX.Y.Z tag (e.g. v0.1.0) tests, builds the PyInstaller EXE,
+# zips it for Scoop, and publishes a GitHub Release with the ZIP attached.
+# Tag filters are globs, not regexes: '+' means "one or more of the preceding
+# character". Tags like v1.2.3-rc1, test.v1.2.3 or v1 do NOT match; ci.yml
+# tests those without building a release.
+on:
+  push:
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Verify tag matches pyproject version
+        shell: pwsh
+        run: |
+          $tagVersion = '${{ github.ref_name }}'.TrimStart('v')
+          $projVersion = (Select-String -Path pyproject.toml -Pattern '^version\s*=\s*"(.+)"').Matches[0].Groups[1].Value
+          if ($tagVersion -ne $projVersion) {
+            throw "Tag version '$tagVersion' does not match pyproject.toml version '$projVersion'"
+          }
+
+      - name: Run tests
+        run: uv run pytest
+
+      - name: Build EXE
+        shell: pwsh
+        run: ./build-exe.ps1
+
+      - name: Smoke-test EXE
+        shell: pwsh
+        run: |
+          ./dist/ImgScaleAndExport.exe tests/assets/Test-Photo-001_300px.png -H 50 -o "$env:RUNNER_TEMP/smoke"
+          if ($LASTEXITCODE -ne 0) { throw "EXE smoke test failed" }
+
+      - name: Package ZIP
+        id: pkg
+        shell: pwsh
+        run: |
+          $zip = "ImgScaleAndExport-${{ github.ref_name }}-win64.zip"
+          Compress-Archive -Path dist/ImgScaleAndExport.exe, README.md -DestinationPath $zip
+          $hash = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLower()
+          "zip=$zip" >> $env:GITHUB_OUTPUT
+          "sha256=$hash" >> $env:GITHUB_OUTPUT
+          Write-Host "$zip sha256=$hash"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.pkg.outputs.zip }}
+          body: |
+            SHA256 (`${{ steps.pkg.outputs.zip }}`): `${{ steps.pkg.outputs.sha256 }}`
+
+            Install with Scoop:
+            `scoop bucket add zmt https://github.com/ZMT-Creative/scoop-bucket`
+            `scoop install zmt/imgscaleandexport`

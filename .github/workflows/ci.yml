@@ -1,0 +1,18 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+    # Test every tag EXCEPT strict vX.Y.Z release tags, which release.yml
+    # already tests before building. Later patterns override earlier ones.
+    tags: ["**", "!v[0-9]+.[0-9]+.[0-9]+"]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - name: Run tests
+        run: uv run pytest

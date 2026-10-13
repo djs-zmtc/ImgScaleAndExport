@@ -60,5 +60,5 @@ jobs:
             SHA256 (`${{ steps.pkg.outputs.zip }}`): `${{ steps.pkg.outputs.sha256 }}`
 
             Install with Scoop:
-            `scoop bucket add zmt https://github.com/ZMT-Creative/scoop-bucket`
-            `scoop install zmt/imgscaleandexport`
+            `scoop bucket add zmtc https://github.com/ZMT-Creative/scoop-bucket`
+            `scoop install zmtc/imgscaleandexport`

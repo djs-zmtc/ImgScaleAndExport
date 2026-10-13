@@ -1,0 +1,29 @@
+[project]
+name = "imgscaleandexport"
+version = "0.1.0"
+description = "Proportionally resize PNG images and optionally convert them to JPG."
+readme = "README.md"
+authors = [
+    { name = "Doug Sweeney [RAZORBACK]", email = "douglas.sweeney@zmtcreative.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "pillow>=12.3.0",
+]
+
+[project.scripts]
+imgscaleandexport = "imgscaleandexport.cli:main"
+
+[build-system]
+requires = ["uv_build>=0.12.6,<0.13.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=imgscaleandexport --cov-report=term-missing"

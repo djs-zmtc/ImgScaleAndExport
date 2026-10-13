@@ -7,12 +7,12 @@ from pathlib import Path
 
 # Size-suffix patterns stripped from the source basename. A trailing segment
 # (introduced by "-" or "_") is only removed when it clearly describes a size:
-#   * a letter prefix followed by digits, optionally "px"  (e.g. ``_HD1080``)
+#   * a letter prefix directly followed by digits, optionally "px"  (``_HD1080``)
 #   * WIDTHxHEIGHT, optionally "px"                         (e.g. ``-200x200``)
 #   * digits followed by "px"                               (e.g. ``_600px``)
 # Plain trailing numbers such as ``-001`` are intentionally preserved.
 SIZE_SUFFIX_RE = re.compile(
-    r"[-_](?:[A-Za-z]+-?\d+(?:px)?|\d+x\d+(?:px)?|\d+px)$",
+    r"[-_](?:[A-Za-z]+\d+(?:px)?|\d+x\d+(?:px)?|\d+px)$",
     re.IGNORECASE,
 )
 

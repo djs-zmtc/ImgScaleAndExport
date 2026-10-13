@@ -13,6 +13,8 @@ from imgscaleandexport.naming import build_output_name, strip_size_suffix
         ("Imagefile-Golden-200x200", "Imagefile-Golden"),
         ("Imagefile-Golden_200x200px", "Imagefile-Golden"),
         ("Imagefile-001", "Imagefile-001"),
+        ("Test-Clipart-003", "Test-Clipart-003"),  # word + plain number kept
+        ("Test-Photo-001_300px", "Test-Photo-001"),
         ("Photo_2024", "Photo_2024"),
         ("plain", "plain"),
         ("_600px", "_600px"),  # would be empty -> keep original

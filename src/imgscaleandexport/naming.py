@@ -12,7 +12,7 @@ from pathlib import Path
 #   * digits followed by "px"                               (e.g. ``_600px``)
 # Plain trailing numbers such as ``-001`` are intentionally preserved.
 SIZE_SUFFIX_RE = re.compile(
-    r"[-_](?:(?:[wh]|hd|uhd|fhd|sd|res|dim)\d+(?:px?)?|\d+x\d+(?:px?)?|\d+px?)$",
+    r"[-_](?:(?:[wh]|hd|uhd|fhd|sd|res|dim)\d+(?:px?[wh]?)?|\d+x\d+(?:px?[wh]?)?|\d+px?[wh]?)$",
     re.IGNORECASE,
 )
 

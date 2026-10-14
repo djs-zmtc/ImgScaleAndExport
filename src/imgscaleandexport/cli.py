@@ -47,6 +47,17 @@ def parse_quality(value: str) -> int:
     return quality
 
 
+def parse_percent(value: str) -> float:
+    """Validate JPG size percentage (> 0)."""
+    try:
+        percent = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid percentage {value!r}") from None
+    if percent <= 0:
+        raise argparse.ArgumentTypeError("percentage must be greater than 0")
+    return percent
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser.
 
@@ -77,10 +88,18 @@ def build_parser() -> argparse.ArgumentParser:
         "-j", "-jpg", "--jpg", dest="jpg", action="store_true",
         help="also convert each resized image to JPG (white background)",
     )
-    parser.add_argument(
+
+    jpg_quality_group = parser.add_mutually_exclusive_group()
+    jpg_quality_group.add_argument(
         "-q", "-quality", "--quality", dest="quality", type=parse_quality,
-        default=90, metavar="N", help="JPG quality 1-95 (default: 90)",
+        default=None, metavar="N", help="JPG quality 1-95 (default: 90)",
     )
+    jpg_quality_group.add_argument(
+        "-jpg-percent", "--jpg-percent", "-jpgpercent", "--jpgpercent",
+        dest="jpg_percent", type=parse_percent, default=None, metavar="PCT",
+        help="target JPG file size as a percentage of PNG size (auto-selects quality 30-95; implies -jpg)",
+    )
+
     parser.add_argument(
         "-o", "-output", "--output-dir", dest="output", type=Path, default=None,
         metavar="DIR", help="destination folder (default: source image folder)",
@@ -109,12 +128,15 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     axis, sizes = ("H", args.height) if args.height else ("W", args.width)
     resample = FILTERS[args.filter] if args.filter else None
+    to_jpg = args.jpg or (args.jpg_percent is not None)
+    quality = args.quality if args.quality is not None else 90
 
     try:
         results = process_image(
             args.source, axis, sizes,
-            output_dir=args.output, to_jpg=args.jpg, filter_override=resample,
-            overwrite=args.overwrite, quality=args.quality,
+            output_dir=args.output, to_jpg=to_jpg, filter_override=resample,
+            overwrite=args.overwrite, quality=quality,
+            jpg_percent=args.jpg_percent,
         )
     except ImgScaleError as exc:
         print(f"error: {exc}", file=sys.stderr)

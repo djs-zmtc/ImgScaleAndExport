@@ -18,7 +18,8 @@ uv run imgscaleandexport Logo.png -W 800,400 -jpg -o out -filter lanczos
 | `-H`, `-height`, `--height` | Comma-separated heights (px) — required, exclusive with width |
 | `-W`, `-width`, `--width` | Comma-separated widths (px) — required, exclusive with height |
 | `-j`, `-jpg`, `--jpg` | Also write a JPG (transparency flattened onto white) |
-| `-q`, `-quality`, `--quality` | JPG quality 1–95 (default 90) |
+| `-q`, `-quality`, `--quality` | Explicit JPG quality 1–95 (default: 90) |
+| `-jpg-percent`, `--jpg-percent` | Target JPG file size as % of PNG size (auto quality 30–95, implies `-jpg`) |
 | `-o`, `-output`, `--output-dir` | Destination folder (default: source folder) |
 | `-f`, `-filter`, `--filter` | Force NEAREST, BOX, BILINEAR, HAMMING, BICUBIC or LANCZOS |
 | `-overwrite`, `-clobber` | Overwrite existing outputs (never the source) |

@@ -148,3 +148,18 @@ def test_module_entry_point(photo, monkeypatch):
         runpy.run_module("imgscaleandexport", run_name="__main__")
     assert exc.value.code == 0
     assert (photo.parent / "Test-Photo-001_H40px.png").exists()
+
+
+def test_jpg_percent_with_real_asset(photo, tmp_path):
+    out = tmp_path / "pct_real"
+    results = process_image(photo, "W", [200], output_dir=out, jpg_percent=15)
+    assert len(results) == 2
+    assert [r.status for r in results] == ["written", "written"]
+    png_path = out / "Test-Photo-001_W200px.png"
+    jpg_path = out / "Test-Photo-001_W200px.jpg"
+    assert png_path.exists() and jpg_path.exists()
+    assert jpg_path.stat().st_size > 0
+    with Image.open(jpg_path) as im:
+        assert im.format == "JPEG"
+        assert im.size == (200, 200)
+

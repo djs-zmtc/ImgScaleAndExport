@@ -1,7 +1,13 @@
 import pytest
 from PIL import Image
 
-from imgscaleandexport.cli import main, parse_filter, parse_quality, parse_size_list
+from imgscaleandexport.cli import (
+    main,
+    parse_filter,
+    parse_percent,
+    parse_quality,
+    parse_size_list,
+)
 
 import argparse
 
@@ -28,6 +34,14 @@ def test_parse_filter_and_quality():
     for bad in ("x", "0", "96"):
         with pytest.raises(argparse.ArgumentTypeError):
             parse_quality(bad)
+
+
+def test_parse_percent():
+    assert parse_percent("10") == 10.0
+    assert parse_percent("12.5") == 12.5
+    for bad in ("x", "0", "-1"):
+        with pytest.raises(argparse.ArgumentTypeError):
+            parse_percent(bad)
 
 
 @pytest.mark.parametrize("flag", ["-height", "--height", "-H"])
@@ -86,3 +100,20 @@ def test_write_failure_returns_1(src, monkeypatch, capsys):
     monkeypatch.setattr(Image.Image, "save", boom)
     assert main([str(src), "-H", "10"]) == 1
     assert "error" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("flag", ["-jpg-percent", "--jpg-percent"])
+def test_jpg_percent_flag_implies_jpg(src, tmp_path, flag, capsys):
+    out = tmp_path / "pct_out"
+    code = main([str(src), "-W", "100", flag, "50", "-output", str(out)])
+    assert code == 0
+    assert (out / "Pic_W100px.jpg").exists()
+    assert (out / "Pic_W100px.png").exists()
+    assert capsys.readouterr().out.count("wrote") == 2
+
+
+def test_jpg_percent_and_quality_mutually_exclusive(src):
+    with pytest.raises(SystemExit) as e:
+        main([str(src), "-W", "100", "-quality", "85", "-jpg-percent", "10"])
+    assert e.value.code == 2
+

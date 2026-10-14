@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import io
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -35,6 +36,10 @@ UPSCALE_FILTER = Image.Resampling.BICUBIC
 DOWNSCALE_FILTER = Image.Resampling.LANCZOS
 #: Solid background used when flattening transparency for JPG output.
 JPEG_BACKGROUND = (255, 255, 255)
+#: Quality floor when searching by percentage target.
+MIN_JPG_PERCENT_QUALITY = 30
+#: Quality ceiling when searching by percentage target.
+MAX_JPG_PERCENT_QUALITY = 95
 
 
 class ImgScaleError(Exception):
@@ -98,6 +103,59 @@ def flatten_to_rgb(image: Image.Image) -> Image.Image:
     return Image.alpha_composite(background, rgba).convert("RGB")
 
 
+def find_best_jpg_quality(
+    image: Image.Image,
+    target_bytes: int,
+    min_q: int = MIN_JPG_PERCENT_QUALITY,
+    max_q: int = MAX_JPG_PERCENT_QUALITY,
+) -> tuple[int, bytes]:
+    """Find the highest JPEG quality that keeps compressed size under target_bytes.
+
+    Uses binary search over quality settings in memory without writing to disk.
+    If the target size is unreachable even at ``min_q``, the ``min_q`` compressed
+    bytes are returned.
+
+    Args:
+        image: RGB Image to compress.
+        target_bytes: Maximum desired file size in bytes.
+        min_q: Quality floor (default 30).
+        max_q: Quality ceiling (default 95).
+
+    Returns:
+        A tuple of (selected_quality, jpeg_bytes).
+    """
+    low, high = min_q, max_q
+    best_q = min_q
+    best_data: bytes | None = None
+    cache: dict[int, bytes] = {}
+
+    while low <= high:
+        mid = (low + high) // 2
+        buf = io.BytesIO()
+        image.save(buf, format="JPEG", quality=mid, optimize=True)
+        data = buf.getvalue()
+        cache[mid] = data
+        size = len(data)
+
+        if size <= target_bytes:
+            best_q = mid
+            best_data = data
+            low = mid + 1
+        else:
+            high = mid - 1
+
+    if best_data is None:
+        best_q = min_q
+        if min_q in cache:
+            best_data = cache[min_q]
+        else:
+            buf = io.BytesIO()
+            image.save(buf, format="JPEG", quality=min_q, optimize=True)
+            best_data = buf.getvalue()
+
+    return best_q, best_data
+
+
 def _is_source(path: Path, source: Path) -> bool:
     """True if ``path`` refers to the same file as ``source``."""
     try:
@@ -109,19 +167,22 @@ def _is_source(path: Path, source: Path) -> bool:
 
 
 def _write(
-    image: Image.Image,
+    target: Image.Image | bytes,
     path: Path,
     source: Path,
     overwrite: bool,
-    save_kwargs: dict,
+    save_kwargs: dict | None = None,
 ) -> Result:
-    """Save ``image`` to ``path`` honouring overwrite and source protection."""
+    """Save ``target`` to ``path`` honouring overwrite and source protection."""
     if _is_source(path, source):
         return Result(path, "skipped", "refusing to overwrite the source image")
     if path.exists() and not overwrite:
         return Result(path, "skipped", "already exists (use -overwrite)")
     try:
-        image.save(path, **save_kwargs)
+        if isinstance(target, bytes):
+            path.write_bytes(target)
+        else:
+            target.save(path, **(save_kwargs or {}))
     except OSError as exc:
         return Result(path, "error", str(exc))
     return Result(path, "written")
@@ -136,6 +197,7 @@ def process_image(
     filter_override: Image.Resampling | None = None,
     overwrite: bool = False,
     quality: int = 90,
+    jpg_percent: float | None = None,
 ) -> list[Result]:
     """Resize ``source`` to each size and optionally also export JPGs.
 
@@ -148,7 +210,9 @@ def process_image(
         to_jpg: Also write a JPG for every resized PNG.
         filter_override: Resampling filter overriding the automatic choice.
         overwrite: Allow replacing existing output files (never the source).
-        quality: JPG quality (1-95).
+        quality: JPG quality (1-95) when ``jpg_percent`` is not specified.
+        jpg_percent: Target JPG size as a percentage of PNG size (auto-selects
+            quality between 30 and 95; implies JPG export).
 
     Returns:
         One :class:`Result` per file attempted.
@@ -177,15 +241,29 @@ def process_image(
         png_path = dest / build_output_name(source, axis, size, "png")
         results.append(_write(resized, png_path, source, overwrite, {"format": "PNG"}))
 
-        if to_jpg:
+        if to_jpg or jpg_percent is not None:
             jpg_path = dest / build_output_name(source, axis, size, "jpg")
-            results.append(
-                _write(
-                    flatten_to_rgb(resized),
-                    jpg_path,
-                    source,
-                    overwrite,
-                    {"format": "JPEG", "quality": quality},
+            rgb_image = flatten_to_rgb(resized)
+
+            if jpg_percent is not None:
+                if png_path.exists():
+                    png_size = png_path.stat().st_size
+                else:
+                    buf = io.BytesIO()
+                    resized.save(buf, format="PNG")
+                    png_size = buf.tell()
+
+                target_bytes = max(1, round(png_size * (jpg_percent / 100)))
+                _, jpg_bytes = find_best_jpg_quality(rgb_image, target_bytes)
+                results.append(_write(jpg_bytes, jpg_path, source, overwrite))
+            else:
+                results.append(
+                    _write(
+                        rgb_image,
+                        jpg_path,
+                        source,
+                        overwrite,
+                        {"format": "JPEG", "quality": quality},
+                    )
                 )
-            )
     return results

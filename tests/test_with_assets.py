@@ -49,7 +49,7 @@ def test_naming_with_real_files(tmp_path):
         src = tmp_path / name
         shutil.copy(ASSETS / name, src)
         process_image(src, "H", [100])
-        assert (tmp_path / f"{base}_H100px.png").exists()
+        assert (tmp_path / f"{base}_100pxH.png").exists()
 
 
 def test_downscale_and_upscale_dimensions(asset):
@@ -64,7 +64,7 @@ def test_height_mode_dimensions(asset):
     results = process_image(asset, "H", [75])
     with Image.open(results[0].path) as im:
         assert im.size == (75, 75)
-    assert "_H75px" in results[0].path.name
+    assert "_75pxH" in results[0].path.name
 
 
 def test_same_size_is_written_and_matches_source(asset):
@@ -129,8 +129,8 @@ def test_cli_end_to_end_with_assets(photo, tmp_path, capsys):
     assert code == 0
     names = sorted(p.name for p in out.iterdir())
     assert names == [
-        "Test-Photo-001_W200px.jpg", "Test-Photo-001_W200px.png",
-        "Test-Photo-001_W400px.jpg", "Test-Photo-001_W400px.png",
+        "Test-Photo-001_200pxW.jpg", "Test-Photo-001_200pxW.png",
+        "Test-Photo-001_400pxW.jpg", "Test-Photo-001_400pxW.png",
     ]
     assert capsys.readouterr().out.count("wrote") == 4
 
@@ -147,7 +147,7 @@ def test_module_entry_point(photo, monkeypatch):
     with pytest.raises(SystemExit) as exc:
         runpy.run_module("imgscaleandexport", run_name="__main__")
     assert exc.value.code == 0
-    assert (photo.parent / "Test-Photo-001_H40px.png").exists()
+    assert (photo.parent / "Test-Photo-001_40pxH.png").exists()
 
 
 def test_jpg_percent_with_real_asset(photo, tmp_path):
@@ -155,11 +155,23 @@ def test_jpg_percent_with_real_asset(photo, tmp_path):
     results = process_image(photo, "W", [200], output_dir=out, jpg_percent=15)
     assert len(results) == 2
     assert [r.status for r in results] == ["written", "written"]
-    png_path = out / "Test-Photo-001_W200px.png"
-    jpg_path = out / "Test-Photo-001_W200px.jpg"
+    png_path = out / "Test-Photo-001_200pxW.png"
+    jpg_path = out / "Test-Photo-001_200pxW.jpg"
     assert png_path.exists() and jpg_path.exists()
     assert jpg_path.stat().st_size > 0
     with Image.open(jpg_path) as im:
         assert im.format == "JPEG"
         assert im.size == (200, 200)
+
+
+def test_standard_with_real_asset(photo, tmp_path, capsys):
+    out = tmp_path / "std_real"
+    code = main([str(photo), "--standard", "-output", str(out)])
+    assert code == 0
+    assert capsys.readouterr().out.count("wrote") == 14
+    for h in (240, 360, 480, 720, 1080, 1440, 2160):
+        png = out / f"Test-Photo-001_{h}pxH.png"
+        jpg = out / f"Test-Photo-001_{h}pxH.jpg"
+        assert png.exists() and jpg.exists()
+
 

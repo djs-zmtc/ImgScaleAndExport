@@ -49,7 +49,7 @@ def test_filter_selection_used(src, monkeypatch):
 
 def test_resize_png_only(src):
     results = process_image(src, "H", [350])
-    out = src.parent / "Pic-001_H350px.png"
+    out = src.parent / "Pic-001_350pxH.png"
     assert [r.status for r in results] == ["written"]
     with Image.open(out) as im:
         assert im.size == (500, 350)
@@ -58,8 +58,8 @@ def test_resize_png_only(src):
 def test_jpg_and_output_dir_flatten_white(src, tmp_path):
     dest = tmp_path / "out" / "nested"
     process_image(src, "W", [100], output_dir=dest, to_jpg=True)
-    assert (dest / "Pic-001_W100px.png").exists()
-    with Image.open(dest / "Pic-001_W100px.jpg") as im:
+    assert (dest / "Pic-001_100pxW.png").exists()
+    with Image.open(dest / "Pic-001_100pxW.jpg") as im:
         assert im.format == "JPEG"
         r, g, b = im.getpixel((5, 5))
         assert min(r, g, b) >= 250  # transparent -> white
@@ -71,7 +71,7 @@ def test_flatten_to_rgb_mode():
 
 def test_no_overwrite_by_default_and_overwrite_flag(src):
     process_image(src, "W", [100])
-    out = src.parent / "Pic-001_W100px.png"
+    out = src.parent / "Pic-001_100pxW.png"
     out.write_bytes(b"sentinel")
     res = process_image(src, "W", [100])
     assert res[0].status == "skipped" and out.read_bytes() == b"sentinel"
@@ -79,12 +79,11 @@ def test_no_overwrite_by_default_and_overwrite_flag(src):
     assert res[0].status == "written" and out.read_bytes() != b"sentinel"
 
 
-def test_never_overwrites_source(tmp_path):
-    # Source name without a size suffix, same size -> output would collide
-    # only if name matched; force collision via a crafted name.
-    path = tmp_path / "x_W100px.png"
+def test_never_overwrites_source(tmp_path, monkeypatch):
+    path = tmp_path / "source.png"
     Image.new("RGB", (100, 50)).save(path)
     before = path.read_bytes()
+    monkeypatch.setattr(core, "build_output_name", lambda *args: "source.png")
     res = process_image(path, "W", [100], overwrite=True)
     assert res[0].status == "skipped"
     assert path.read_bytes() == before
@@ -144,8 +143,8 @@ def test_process_image_jpg_percent(src, tmp_path):
     dest = tmp_path / "out"
     results = process_image(src, "W", [100], output_dir=dest, jpg_percent=50)
     assert [r.status for r in results] == ["written", "written"]
-    png_path = dest / "Pic-001_W100px.png"
-    jpg_path = dest / "Pic-001_W100px.jpg"
+    png_path = dest / "Pic-001_100pxW.png"
+    jpg_path = dest / "Pic-001_100pxW.jpg"
     assert png_path.exists() and jpg_path.exists()
     png_size = png_path.stat().st_size
     jpg_size = jpg_path.stat().st_size

@@ -47,15 +47,15 @@ def test_parse_percent():
 @pytest.mark.parametrize("flag", ["-height", "--height", "-H"])
 def test_height_flag_styles(src, flag, capsys):
     assert main([str(src), flag, "100"]) == 0
-    assert (src.parent / "Pic_H100px.png").exists()
+    assert (src.parent / "Pic_100pxH.png").exists()
     assert "wrote" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize("flag", ["-width", "--width", "-W"])
 def test_width_flag_styles(src, flag):
     assert main([str(src), flag, "100,50"]) == 0
-    assert (src.parent / "Pic_W100px.png").exists()
-    assert (src.parent / "Pic_W50px.png").exists()
+    assert (src.parent / "Pic_100pxW.png").exists()
+    assert (src.parent / "Pic_50pxW.png").exists()
 
 
 def test_size_required_and_mutually_exclusive(src):
@@ -64,6 +64,9 @@ def test_size_required_and_mutually_exclusive(src):
     assert e.value.code == 2
     with pytest.raises(SystemExit) as e:
         main([str(src), "-height", "10", "-width", "10"])
+    assert e.value.code == 2
+    with pytest.raises(SystemExit) as e:
+        main([str(src), "-standard", "-height", "10"])
     assert e.value.code == 2
 
 
@@ -76,7 +79,7 @@ def test_jpg_output_filter_overwrite(src, tmp_path, capsys):
     out = tmp_path / "o"
     argv = [str(src), "-W", "100", "-jpg", "-output", str(out), "-filter", "box"]
     assert main(argv) == 0
-    assert (out / "Pic_W100px.jpg").exists()
+    assert (out / "Pic_100pxW.jpg").exists()
     capsys.readouterr()
     assert main(argv) == 0  # skipped, not an error
     assert "skipped" in capsys.readouterr().err
@@ -107,8 +110,8 @@ def test_jpg_percent_flag_implies_jpg(src, tmp_path, flag, capsys):
     out = tmp_path / "pct_out"
     code = main([str(src), "-W", "100", flag, "50", "-output", str(out)])
     assert code == 0
-    assert (out / "Pic_W100px.jpg").exists()
-    assert (out / "Pic_W100px.png").exists()
+    assert (out / "Pic_100pxW.jpg").exists()
+    assert (out / "Pic_100pxW.png").exists()
     assert capsys.readouterr().out.count("wrote") == 2
 
 
@@ -123,7 +126,27 @@ def test_cli_jpg_stdout_reports_quality(src, tmp_path, capsys):
     code = main([str(src), "-W", "100", "-jpg", "-quality", "85", "-output", str(out)])
     assert code == 0
     captured = capsys.readouterr().out
-    assert "Pic_W100px.png" in captured
-    assert "Pic_W100px.jpg (Q=85)" in captured
+    assert "Pic_100pxW.png" in captured
+    assert "Pic_100pxW.jpg (Q=85)" in captured
+
+
+@pytest.mark.parametrize("flag", ["-S", "-standard", "--standard"])
+def test_standard_flag(src, tmp_path, flag, capsys):
+    out = tmp_path / f"std_{flag.strip('-')}"
+    code = main([str(src), flag, "-output", str(out)])
+    assert code == 0
+    captured = capsys.readouterr().out
+    assert captured.count("wrote") == 14
+    for h in (240, 360, 480, 720, 1080, 1440, 2160):
+        assert (out / f"Pic_{h}pxH.png").exists()
+        assert (out / f"Pic_{h}pxH.jpg").exists()
+
+
+def test_standard_flag_custom_quality(src, tmp_path):
+    out = tmp_path / "std_custom_q"
+    code = main([str(src), "--standard", "-quality", "80", "-output", str(out)])
+    assert code == 0
+    assert (out / "Pic_720pxH.jpg").exists()
+
 
 

@@ -6,7 +6,14 @@ import argparse
 import sys
 from pathlib import Path
 
-from .core import FILTERS, ImgScaleError, SUPPORTED_SOURCE_FORMATS, process_image
+from .core import (
+    FILTERS,
+    STANDARD_HEIGHTS,
+    STANDARD_JPG_PERCENT,
+    ImgScaleError,
+    SUPPORTED_SOURCE_FORMATS,
+    process_image,
+)
 
 
 def parse_size_list(value: str) -> list[int]:
@@ -83,6 +90,10 @@ def build_parser() -> argparse.ArgumentParser:
         "-W", "-width", "--width", dest="width", type=parse_size_list,
         metavar="SIZES", help="comma-separated target widths in pixels",
     )
+    group.add_argument(
+        "-S", "-standard", "--standard", dest="standard", action="store_true",
+        help="standard preset: resize heights to 240,360,480,720,1080,1440,2160 and convert to JPG with 10% target size",
+    )
 
     parser.add_argument(
         "-j", "-jpg", "--jpg", dest="jpg", action="store_true",
@@ -126,17 +137,28 @@ def main(argv: list[str] | None = None) -> int:
         2 for invalid arguments (via argparse).
     """
     args = build_parser().parse_args(argv)
-    axis, sizes = ("H", args.height) if args.height else ("W", args.width)
     resample = FILTERS[args.filter] if args.filter else None
-    to_jpg = args.jpg or (args.jpg_percent is not None)
-    quality = args.quality if args.quality is not None else 90
+
+    if args.standard:
+        axis = "H"
+        sizes = STANDARD_HEIGHTS
+        to_jpg = True
+        jpg_percent = args.jpg_percent if args.jpg_percent is not None else (
+            STANDARD_JPG_PERCENT if args.quality is None else None
+        )
+        quality = args.quality if args.quality is not None else 90
+    else:
+        axis, sizes = ("H", args.height) if args.height else ("W", args.width)
+        to_jpg = args.jpg or (args.jpg_percent is not None)
+        quality = args.quality if args.quality is not None else 90
+        jpg_percent = args.jpg_percent
 
     try:
         results = process_image(
             args.source, axis, sizes,
             output_dir=args.output, to_jpg=to_jpg, filter_override=resample,
             overwrite=args.overwrite, quality=quality,
-            jpg_percent=args.jpg_percent,
+            jpg_percent=jpg_percent,
         )
     except ImgScaleError as exc:
         print(f"error: {exc}", file=sys.stderr)

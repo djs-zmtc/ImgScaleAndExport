@@ -40,6 +40,11 @@ JPEG_BACKGROUND = (255, 255, 255)
 MIN_JPG_PERCENT_QUALITY = 30
 #: Quality ceiling when searching by percentage target.
 MAX_JPG_PERCENT_QUALITY = 95
+#: Standard heights for the --standard shortcut.
+STANDARD_HEIGHTS: list[int] = [240, 360, 480, 720, 1080, 1440, 2160]
+#: Standard JPG target size percentage for the --standard shortcut.
+STANDARD_JPG_PERCENT: float = 10.0
+
 
 
 class ImgScaleError(Exception):

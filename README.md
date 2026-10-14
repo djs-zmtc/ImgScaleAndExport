@@ -1,6 +1,8 @@
 # ImgScaleAndExport
 
 Proportionally resize a lossless (PNG) source image to one or more sizes, and optionally convert each result to JPG.
+Useful for creating multiple sizes of a specific icon, logo or meme image. Currently accepts `PNG` as the source image
+and generates resized `PNG` and (optionally) `JPG` images.
 
 ## Install / run
 

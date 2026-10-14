@@ -117,3 +117,13 @@ def test_jpg_percent_and_quality_mutually_exclusive(src):
         main([str(src), "-W", "100", "-quality", "85", "-jpg-percent", "10"])
     assert e.value.code == 2
 
+
+def test_cli_jpg_stdout_reports_quality(src, tmp_path, capsys):
+    out = tmp_path / "q_report"
+    code = main([str(src), "-W", "100", "-jpg", "-quality", "85", "-output", str(out)])
+    assert code == 0
+    captured = capsys.readouterr().out
+    assert "Pic_W100px.png" in captured
+    assert "Pic_W100px.jpg (Q=85)" in captured
+
+

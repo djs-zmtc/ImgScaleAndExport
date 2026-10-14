@@ -53,6 +53,8 @@ class Result:
     path: Path
     status: str  # "written", "skipped", or "error"
     message: str = ""
+    quality: int | None = None
+
 
 
 def validate_source(source: Path) -> None:
@@ -172,6 +174,7 @@ def _write(
     source: Path,
     overwrite: bool,
     save_kwargs: dict | None = None,
+    quality: int | None = None,
 ) -> Result:
     """Save ``target`` to ``path`` honouring overwrite and source protection."""
     if _is_source(path, source):
@@ -185,7 +188,7 @@ def _write(
             target.save(path, **(save_kwargs or {}))
     except OSError as exc:
         return Result(path, "error", str(exc))
-    return Result(path, "written")
+    return Result(path, "written", quality=quality)
 
 
 def process_image(
@@ -254,8 +257,8 @@ def process_image(
                     png_size = buf.tell()
 
                 target_bytes = max(1, round(png_size * (jpg_percent / 100)))
-                _, jpg_bytes = find_best_jpg_quality(rgb_image, target_bytes)
-                results.append(_write(jpg_bytes, jpg_path, source, overwrite))
+                actual_q, jpg_bytes = find_best_jpg_quality(rgb_image, target_bytes)
+                results.append(_write(jpg_bytes, jpg_path, source, overwrite, quality=actual_q))
             else:
                 results.append(
                     _write(
@@ -264,6 +267,7 @@ def process_image(
                         source,
                         overwrite,
                         {"format": "JPEG", "quality": quality},
+                        quality=quality,
                     )
                 )
     return results

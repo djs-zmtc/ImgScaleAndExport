@@ -145,7 +145,8 @@ def main(argv: list[str] | None = None) -> int:
     failed = False
     for res in results:
         if res.status == "written":
-            print(f"wrote {res.path}")
+            detail = f" (Q={res.quality})" if res.quality is not None else ""
+            print(f"wrote {res.path}{detail}")
         elif res.status == "skipped":
             print(f"warning: skipped {res.path}: {res.message}", file=sys.stderr)
         else:

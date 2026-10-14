@@ -177,16 +177,18 @@ def test_process_image_jpg_percent_when_png_not_on_disk(src, tmp_path, monkeypat
     orig_write = core._write
     calls = []
 
-    def spy_write(target, path, source, overwrite, save_kwargs=None):
+    def spy_write(target, path, source, overwrite, save_kwargs=None, quality=None):
         if path.suffix == ".png":
             calls.append("png")
             return core.Result(path, "error", "failed to write PNG")
         calls.append("jpg")
-        return orig_write(target, path, source, overwrite, save_kwargs)
+        return orig_write(target, path, source, overwrite, save_kwargs, quality=quality)
 
     monkeypatch.setattr(core, "_write", spy_write)
     results = process_image(src, "W", [50], output_dir=tmp_path, jpg_percent=20)
     assert results[0].status == "error"
     assert results[1].status == "written"
+    assert results[1].quality is not None
+
 
 

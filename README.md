@@ -15,17 +15,19 @@ uv run imgscaleandexport Logo.png -W 800,400 -jpg -o out -filter lanczos
 | Option | Description |
 |---|---|
 | `source` | Source image (PNG only for now; see `SUPPORTED_SOURCE_FORMATS` in `core.py`) |
-| `-H`, `-height`, `--height` | Comma-separated heights (px) — required, exclusive with width |
-| `-W`, `-width`, `--width` | Comma-separated widths (px) — required, exclusive with height |
+| `-H`, `-height`, `--height` | Comma-separated heights (px) — required, exclusive with width and standard |
+| `-W`, `-width`, `--width` | Comma-separated widths (px) — required, exclusive with height and standard |
+| `-S`, `-standard`, `--standard` | Preset shortcut: heights `240,360,480,720,1080,1440,2160` with 10% JPG target size |
 | `-j`, `-jpg`, `--jpg` | Also write a JPG (transparency flattened onto white) |
-| `-q`, `-quality`, `--quality` | JPG quality 1–95 (default 90) |
+| `-q`, `-quality`, `--quality` | Explicit JPG quality 1–95 (default: 90) |
+| `-jpg-percent`, `--jpg-percent` | Target JPG file size as % of PNG size (auto quality 30–95, implies `-jpg`) |
 | `-o`, `-output`, `--output-dir` | Destination folder (default: source folder) |
 | `-f`, `-filter`, `--filter` | Force NEAREST, BOX, BILINEAR, HAMMING, BICUBIC or LANCZOS |
 | `-overwrite`, `-clobber` | Overwrite existing outputs (never the source) |
 
 Default filters: BICUBIC when enlarging, LANCZOS when shrinking.
 
-Output names: `<basename>_<W|H><size>px.<png|jpg>`. A trailing size suffix on the source name (`_600px`, `_HD1080`, `-200x200`) is removed; plain numbers like `-001` are kept.
+Output names: `<basename>_<size>px<W|H>.<png|jpg>`. A trailing size suffix on the source name (`_600px`, `_HD1080`, `-200x200`) is removed; plain numbers like `-001` are kept.
 
 Exit codes: `0` success (existing files skipped with a warning), `1` errors, `2` invalid arguments.
 

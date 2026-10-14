@@ -6,7 +6,14 @@ import argparse
 import sys
 from pathlib import Path
 
-from .core import FILTERS, ImgScaleError, SUPPORTED_SOURCE_FORMATS, process_image
+from .core import (
+    FILTERS,
+    STANDARD_HEIGHTS,
+    STANDARD_JPG_PERCENT,
+    ImgScaleError,
+    SUPPORTED_SOURCE_FORMATS,
+    process_image,
+)
 
 
 def parse_size_list(value: str) -> list[int]:
@@ -47,6 +54,17 @@ def parse_quality(value: str) -> int:
     return quality
 
 
+def parse_percent(value: str) -> float:
+    """Validate JPG size percentage (> 0)."""
+    try:
+        percent = float(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid percentage {value!r}") from None
+    if percent <= 0:
+        raise argparse.ArgumentTypeError("percentage must be greater than 0")
+    return percent
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser.
 
@@ -72,15 +90,27 @@ def build_parser() -> argparse.ArgumentParser:
         "-W", "-width", "--width", dest="width", type=parse_size_list,
         metavar="SIZES", help="comma-separated target widths in pixels",
     )
+    group.add_argument(
+        "-S", "-standard", "--standard", dest="standard", action="store_true",
+        help="standard preset: resize heights to 240,360,480,720,1080,1440,2160 and convert to JPG with 10% target size",
+    )
 
     parser.add_argument(
         "-j", "-jpg", "--jpg", dest="jpg", action="store_true",
         help="also convert each resized image to JPG (white background)",
     )
-    parser.add_argument(
+
+    jpg_quality_group = parser.add_mutually_exclusive_group()
+    jpg_quality_group.add_argument(
         "-q", "-quality", "--quality", dest="quality", type=parse_quality,
-        default=90, metavar="N", help="JPG quality 1-95 (default: 90)",
+        default=None, metavar="N", help="JPG quality 1-95 (default: 90)",
     )
+    jpg_quality_group.add_argument(
+        "-jpg-percent", "--jpg-percent", "-jpgpercent", "--jpgpercent",
+        dest="jpg_percent", type=parse_percent, default=None, metavar="PCT",
+        help="target JPG file size as a percentage of PNG size (auto-selects quality 30-95; implies -jpg)",
+    )
+
     parser.add_argument(
         "-o", "-output", "--output-dir", dest="output", type=Path, default=None,
         metavar="DIR", help="destination folder (default: source image folder)",
@@ -107,14 +137,28 @@ def main(argv: list[str] | None = None) -> int:
         2 for invalid arguments (via argparse).
     """
     args = build_parser().parse_args(argv)
-    axis, sizes = ("H", args.height) if args.height else ("W", args.width)
     resample = FILTERS[args.filter] if args.filter else None
+
+    if args.standard:
+        axis = "H"
+        sizes = STANDARD_HEIGHTS
+        to_jpg = True
+        jpg_percent = args.jpg_percent if args.jpg_percent is not None else (
+            STANDARD_JPG_PERCENT if args.quality is None else None
+        )
+        quality = args.quality if args.quality is not None else 90
+    else:
+        axis, sizes = ("H", args.height) if args.height else ("W", args.width)
+        to_jpg = args.jpg or (args.jpg_percent is not None)
+        quality = args.quality if args.quality is not None else 90
+        jpg_percent = args.jpg_percent
 
     try:
         results = process_image(
             args.source, axis, sizes,
-            output_dir=args.output, to_jpg=args.jpg, filter_override=resample,
-            overwrite=args.overwrite, quality=args.quality,
+            output_dir=args.output, to_jpg=to_jpg, filter_override=resample,
+            overwrite=args.overwrite, quality=quality,
+            jpg_percent=jpg_percent,
         )
     except ImgScaleError as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -123,7 +167,8 @@ def main(argv: list[str] | None = None) -> int:
     failed = False
     for res in results:
         if res.status == "written":
-            print(f"wrote {res.path}")
+            detail = f" (Q={res.quality})" if res.quality is not None else ""
+            print(f"wrote {res.path}{detail}")
         elif res.status == "skipped":
             print(f"warning: skipped {res.path}: {res.message}", file=sys.stderr)
         else:

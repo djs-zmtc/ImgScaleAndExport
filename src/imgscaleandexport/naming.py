@@ -12,7 +12,7 @@ from pathlib import Path
 #   * digits followed by "px"                               (e.g. ``_600px``)
 # Plain trailing numbers such as ``-001`` are intentionally preserved.
 SIZE_SUFFIX_RE = re.compile(
-    r"[-_](?:(?:[wh]|hd|uhd|fhd|sd|res|dim)\d+(?:px)?|\d+x\d+(?:px)?|\d+px)$",
+    r"[-_](?:(?:[wh]|hd|uhd|fhd|sd|res|dim)\d+(?:px?)?|\d+x\d+(?:px?)?|\d+px?)$",
     re.IGNORECASE,
 )
 
@@ -49,4 +49,4 @@ def build_output_name(source: Path, axis: str, size: int, extension: str) -> str
     if axis not in ("W", "H"):
         raise ValueError(f"axis must be 'W' or 'H', got {axis!r}")
     base = strip_size_suffix(source.stem)
-    return f"{base}_{axis}{size}px.{extension}"
+    return f"{base}_{size}px{axis}.{extension}"

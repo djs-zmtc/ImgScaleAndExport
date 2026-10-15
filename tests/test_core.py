@@ -105,6 +105,13 @@ def test_corrupt_png(tmp_path):
         process_image(bad, "W", [10])
 
 
+def test_dest_mkdir_failure(src, tmp_path):
+    dest_file = tmp_path / "blocker.txt"
+    dest_file.write_text("i am a file")
+    with pytest.raises(ImgScaleError, match="Cannot create destination directory"):
+        process_image(src, "W", [10], output_dir=dest_file)
+
+
 def test_write_error_reported(src, monkeypatch):
     def boom(self, *a, **k):
         raise OSError("disk full")
@@ -188,6 +195,72 @@ def test_process_image_jpg_percent_when_png_not_on_disk(src, tmp_path, monkeypat
     assert results[0].status == "error"
     assert results[1].status == "written"
     assert results[1].quality is not None
+
+
+def test_webp_as_source_input(tmp_path):
+    src = tmp_path / "Source-001.webp"
+    Image.new("RGBA", (400, 200), (0, 255, 0, 128)).save(src, format="WEBP")
+    results = process_image(src, "W", [100], to_webp=True, to_jpg=True)
+    assert [r.status for r in results] == ["written", "written", "written"]
+    png_out = src.parent / "Source-001_100pxW.png"
+    jpg_out = src.parent / "Source-001_100pxW.jpg"
+    webp_out = src.parent / "Source-001_100pxW.webp"
+    assert png_out.exists() and jpg_out.exists() and webp_out.exists()
+    with Image.open(webp_out) as im:
+        assert im.format == "WEBP"
+        assert im.size == (100, 50)
+        assert im.mode == "RGBA"
+
+
+def test_never_overwrites_webp_source(tmp_path, monkeypatch):
+    path = tmp_path / "source.webp"
+    Image.new("RGB", (100, 50)).save(path, format="WEBP")
+    before = path.read_bytes()
+    monkeypatch.setattr(core, "build_output_name", lambda *args: "source.webp")
+    res = process_image(path, "W", [100], to_webp=True, overwrite=True)
+    webp_res = [r for r in res if r.path.suffix == ".webp"][0]
+    assert webp_res.status == "skipped"
+    assert path.read_bytes() == before
+
+
+def test_bmp_as_source_input(tmp_path):
+    src = tmp_path / "Source-001.bmp"
+    Image.new("RGB", (400, 200), (0, 0, 255)).save(src, format="BMP")
+    results = process_image(src, "W", [100], to_webp=True, to_jpg=True)
+    assert [r.status for r in results] == ["written", "written", "written"]
+    png_out = src.parent / "Source-001_100pxW.png"
+    jpg_out = src.parent / "Source-001_100pxW.jpg"
+    webp_out = src.parent / "Source-001_100pxW.webp"
+    assert png_out.exists() and jpg_out.exists() and webp_out.exists()
+    with Image.open(png_out) as im:
+        assert im.format == "PNG"
+        assert im.size == (100, 50)
+
+
+@pytest.mark.parametrize("ext", [".tif", ".tiff"])
+def test_tiff_as_source_input(tmp_path, ext):
+    src = tmp_path / f"Source-001{ext}"
+    Image.new("RGBA", (400, 200), (255, 128, 0, 200)).save(src, format="TIFF")
+    results = process_image(src, "H", [100], to_webp=True, to_jpg=True)
+    assert [r.status for r in results] == ["written", "written", "written"]
+    png_out = src.parent / "Source-001_100pxH.png"
+    jpg_out = src.parent / "Source-001_100pxH.jpg"
+    webp_out = src.parent / "Source-001_100pxH.webp"
+    assert png_out.exists() and jpg_out.exists() and webp_out.exists()
+
+
+def test_cmyk_tiff_as_source_input(tmp_path):
+    src = tmp_path / "Source-cmyk.tif"
+    Image.new("CMYK", (400, 200), (100, 50, 0, 10)).save(src, format="TIFF")
+    results = process_image(src, "W", [100], to_webp=True, to_jpg=True)
+    assert [r.status for r in results] == ["written", "written", "written"]
+    png_out = src.parent / "Source-cmyk_100pxW.png"
+    assert png_out.exists()
+    with Image.open(png_out) as im:
+        assert im.format == "PNG"
+        assert im.mode == "RGB"
+
+
 
 
 

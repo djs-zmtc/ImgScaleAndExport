@@ -1,8 +1,9 @@
 [project]
 name = "imgscaleandexport"
 version = "0.2.0"
-description = "Proportionally resize PNG images and optionally convert them to JPG."
+description = "Proportionally resize PNG/WebP images and optionally convert them to JPG or WebP."
 readme = "README.md"
+license = "MIT"
 authors = [
     { name = "Doug Sweeney [RAZORBACK]", email = "douglas.sweeney@zmtcreative.com" }
 ]
@@ -13,6 +14,7 @@ dependencies = [
 
 [project.scripts]
 imgscaleandexport = "imgscaleandexport.cli:main"
+ImgScaleAndExport = "imgscaleandexport.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.12.6,<0.13.0"]

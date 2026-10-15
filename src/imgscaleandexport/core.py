@@ -13,11 +13,14 @@ from .naming import build_output_name
 
 logger = logging.getLogger(__name__)
 
-#: Lossless source formats accepted as input, keyed by file extension
-#: (lower case, with dot) and mapped to the Pillow format name. Add entries
-#: here (e.g. ``".tif": "TIFF"``) to support more lossless formats later.
+#: Supported source formats accepted as input, keyed by file extension
+#: (lower case, with dot) and mapped to the Pillow format name.
 SUPPORTED_SOURCE_FORMATS: dict[str, str] = {
+    ".bmp": "BMP",
     ".png": "PNG",
+    ".tif": "TIFF",
+    ".tiff": "TIFF",
+    ".webp": "WEBP",
 }
 
 #: Resampling filters selectable via ``-filter`` (case-insensitive names).
@@ -44,6 +47,8 @@ MAX_JPG_PERCENT_QUALITY = 95
 STANDARD_HEIGHTS: list[int] = [240, 360, 480, 720, 1080, 1440, 2160]
 #: Standard JPG target size percentage for the --standard shortcut.
 STANDARD_JPG_PERCENT: float = 10.0
+#: Default quality setting for lossy WebP output (recommended WebP quality).
+DEFAULT_WEBP_QUALITY: int = 80
 
 
 
@@ -202,25 +207,29 @@ def process_image(
     sizes: list[int],
     output_dir: Path | None = None,
     to_jpg: bool = False,
+    to_webp: bool = False,
     filter_override: Image.Resampling | None = None,
     overwrite: bool = False,
     quality: int = 90,
     jpg_percent: float | None = None,
+    webp_quality: int = DEFAULT_WEBP_QUALITY,
 ) -> list[Result]:
-    """Resize ``source`` to each size and optionally also export JPGs.
+    """Resize ``source`` to each size and optionally also export JPGs or WebPs.
 
     Args:
-        source: Source image path (must be a supported lossless format).
+        source: Source image path (must be a supported lossless/input format).
         axis: ``"W"`` to resize by width, ``"H"`` by height.
         sizes: Target pixel sizes along ``axis``.
         output_dir: Destination folder (defaults to the source's folder);
             created if missing.
         to_jpg: Also write a JPG for every resized PNG.
+        to_webp: Also write a WebP for every resized image.
         filter_override: Resampling filter overriding the automatic choice.
         overwrite: Allow replacing existing output files (never the source).
         quality: JPG quality (1-95) when ``jpg_percent`` is not specified.
         jpg_percent: Target JPG size as a percentage of PNG size (auto-selects
             quality between 30 and 95; implies JPG export).
+        webp_quality: WebP quality (1-100, default: 80).
 
     Returns:
         One :class:`Result` per file attempted.
@@ -232,11 +241,20 @@ def process_image(
     dest = output_dir if output_dir is not None else source.parent
     try:
         dest.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise ImgScaleError(
+            f"Cannot create destination directory '{dest}': {exc}"
+        ) from exc
+
+    try:
         with Image.open(source) as opened:
             opened.load()
             original = opened.copy()
     except (OSError, Image.DecompressionBombError) as exc:
         raise ImgScaleError(f"Cannot read '{source}': {exc}") from exc
+
+    if original.mode not in ("1", "L", "LA", "P", "RGB", "RGBA"):
+        original = original.convert("RGBA" if "A" in original.mode else "RGB")
 
     src_dim = original.width if axis == "W" else original.height
     results: list[Result] = []
@@ -271,8 +289,21 @@ def process_image(
                         jpg_path,
                         source,
                         overwrite,
-                        {"format": "JPEG", "quality": quality},
+                        {"format": "JPEG", "quality": quality, "optimize": True},
                         quality=quality,
                     )
                 )
+
+        if to_webp:
+            webp_path = dest / build_output_name(source, axis, size, "webp")
+            results.append(
+                _write(
+                    resized,
+                    webp_path,
+                    source,
+                    overwrite,
+                    {"format": "WEBP", "quality": webp_quality},
+                    quality=webp_quality,
+                )
+            )
     return results

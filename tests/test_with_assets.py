@@ -8,7 +8,7 @@ import pytest
 from PIL import Image, ImageChops
 
 from imgscaleandexport.cli import main
-from imgscaleandexport.core import process_image
+from imgscaleandexport.core import compute_target_size, process_image
 
 ASSETS = Path(__file__).parent / "assets"
 PHOTO = "Test-Photo-001_300px.png"  # size suffix should be stripped
@@ -81,33 +81,42 @@ def test_naming_with_real_files(tmp_path):
 
 
 def test_downscale_and_upscale_dimensions(asset):
+    with Image.open(asset) as orig:
+        expected_small = compute_target_size(orig.size, "W", 150)
+        expected_big = compute_target_size(orig.size, "W", 600)
     results = process_image(asset, "W", [150, 600])
     assert [r.status for r in results] == ["written", "written"]
     with Image.open(results[0].path) as small, Image.open(results[1].path) as big:
-        assert small.size == (150, 150)
-        assert big.size == (600, 600)
+        assert small.size == expected_small
+        assert big.size == expected_big
 
 
 def test_height_mode_dimensions(asset):
+    with Image.open(asset) as orig:
+        expected_size = compute_target_size(orig.size, "H", 75)
     results = process_image(asset, "H", [75])
     with Image.open(results[0].path) as im:
-        assert im.size == (75, 75)
+        assert im.size == expected_size
     assert "_75pxH" in results[0].path.name
 
 
 def test_same_size_is_written_and_matches_source(asset):
-    results = process_image(asset, "W", [300])
+    with Image.open(asset) as orig:
+        orig_w = orig.width
+    results = process_image(asset, "W", [orig_w])
     assert results[0].status == "written"
     assert _same_pixels(asset, results[0].path)
 
 
 def test_jpg_conversion_from_real_images(asset):
+    with Image.open(asset) as orig:
+        expected_size = compute_target_size(orig.size, "W", 120)
     results = process_image(asset, "W", [120], to_jpg=True, quality=80)
     assert [r.path.suffix for r in results] == [".png", ".jpg"]
     with Image.open(results[1].path) as jpg:
         assert jpg.format == "JPEG"
         assert jpg.mode == "RGB"
-        assert jpg.size == (120, 120)
+        assert jpg.size == expected_size
 
 
 def test_higher_jpg_quality_gives_bigger_file(photo, tmp_path):
@@ -179,6 +188,8 @@ def test_module_entry_point(photo, monkeypatch):
 
 
 def test_jpg_percent_with_real_asset(photo, tmp_path):
+    with Image.open(photo) as orig:
+        expected_size = compute_target_size(orig.size, "W", 200)
     out = tmp_path / "pct_real"
     results = process_image(photo, "W", [200], output_dir=out, jpg_percent=15)
     assert len(results) == 2
@@ -189,7 +200,7 @@ def test_jpg_percent_with_real_asset(photo, tmp_path):
     assert jpg_path.stat().st_size > 0
     with Image.open(jpg_path) as im:
         assert im.format == "JPEG"
-        assert im.size == (200, 200)
+        assert im.size == expected_size
 
 
 def test_standard_with_real_asset(photo, tmp_path, capsys):
@@ -203,7 +214,24 @@ def test_standard_with_real_asset(photo, tmp_path, capsys):
         assert png.exists() and jpg.exists()
 
 
-def test_tiff_asset_processing_and_transparency(tiff_asset, tmp_path):
+def test_clipart_transparency_handling(tmp_path):
+    src = tmp_path / CLIPART
+    shutil.copy(ASSETS / CLIPART, src)
+    out = tmp_path / "clipart_out"
+    results = process_image(src, "W", [200], output_dir=out, to_jpg=True, to_webp=True)
+    assert len(results) == 3
+    with Image.open(out / "Test-Clipart-003_200pxW.png") as png_im:
+        assert png_im.mode == "RGBA"
+    with Image.open(out / "Test-Clipart-003_200pxW.webp") as webp_im:
+        assert webp_im.mode == "RGBA"
+    with Image.open(out / "Test-Clipart-003_200pxW.jpg") as jpg_im:
+        assert jpg_im.mode == "RGB"
+
+
+def test_tiff_asset_processing(tiff_asset, tmp_path):
+    with Image.open(tiff_asset) as orig:
+        orig_mode = orig.mode
+        expected_size = compute_target_size(orig.size, "H", 120)
     out = tmp_path / "tiff_out"
     results = process_image(tiff_asset, "H", [120], output_dir=out, to_jpg=True, to_webp=True)
     assert len(results) == 3
@@ -215,21 +243,24 @@ def test_tiff_asset_processing_and_transparency(tiff_asset, tmp_path):
 
     with Image.open(png_path) as png_im:
         assert png_im.format == "PNG"
-        assert png_im.size == (214, 120)
-        assert png_im.mode == "RGBA"
+        assert png_im.size == expected_size
+        assert png_im.mode == orig_mode
 
     with Image.open(jpg_path) as jpg_im:
         assert jpg_im.format == "JPEG"
-        assert jpg_im.size == (214, 120)
+        assert jpg_im.size == expected_size
         assert jpg_im.mode == "RGB"
 
     with Image.open(webp_path) as webp_im:
         assert webp_im.format == "WEBP"
-        assert webp_im.size == (214, 120)
-        assert webp_im.mode == "RGBA"
+        assert webp_im.size == expected_size
+        assert webp_im.mode == orig_mode
 
 
-def test_webp_asset_processing_and_transparency(webp_asset, tmp_path):
+def test_webp_asset_processing(webp_asset, tmp_path):
+    with Image.open(webp_asset) as orig:
+        orig_mode = orig.mode
+        expected_size = compute_target_size(orig.size, "W", 400)
     out = tmp_path / "webp_out"
     results = process_image(webp_asset, "W", [400], output_dir=out, to_jpg=True, to_webp=True)
     assert len(results) == 3
@@ -241,18 +272,18 @@ def test_webp_asset_processing_and_transparency(webp_asset, tmp_path):
 
     with Image.open(png_path) as png_im:
         assert png_im.format == "PNG"
-        assert png_im.size == (400, 225)
-        assert png_im.mode == "RGBA"
+        assert png_im.size == expected_size
+        assert png_im.mode == orig_mode
 
     with Image.open(jpg_path) as jpg_im:
         assert jpg_im.format == "JPEG"
-        assert jpg_im.size == (400, 225)
+        assert jpg_im.size == expected_size
         assert jpg_im.mode == "RGB"
 
     with Image.open(webp_path) as webp_im:
         assert webp_im.format == "WEBP"
-        assert webp_im.size == (400, 225)
-        assert webp_im.mode == "RGBA"
+        assert webp_im.size == expected_size
+        assert webp_im.mode == orig_mode
 
 
 def test_cli_end_to_end_with_tiff_asset(tiff_asset, tmp_path, capsys):

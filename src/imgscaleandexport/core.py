@@ -232,6 +232,12 @@ def process_image(
     dest = output_dir if output_dir is not None else source.parent
     try:
         dest.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        raise ImgScaleError(
+            f"Cannot create destination directory '{dest}': {exc}"
+        ) from exc
+
+    try:
         with Image.open(source) as opened:
             opened.load()
             original = opened.copy()

@@ -105,6 +105,13 @@ def test_corrupt_png(tmp_path):
         process_image(bad, "W", [10])
 
 
+def test_dest_mkdir_failure(src, tmp_path):
+    dest_file = tmp_path / "blocker.txt"
+    dest_file.write_text("i am a file")
+    with pytest.raises(ImgScaleError, match="Cannot create destination directory"):
+        process_image(src, "W", [10], output_dir=dest_file)
+
+
 def test_write_error_reported(src, monkeypatch):
     def boom(self, *a, **k):
         raise OSError("disk full")

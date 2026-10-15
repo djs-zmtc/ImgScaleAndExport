@@ -7,6 +7,7 @@ from imgscaleandexport.cli import (
     parse_percent,
     parse_quality,
     parse_size_list,
+    parse_webp_quality,
 )
 
 import argparse
@@ -42,6 +43,15 @@ def test_parse_percent():
     for bad in ("x", "0", "-1", "nan", "inf", "-inf"):
         with pytest.raises(argparse.ArgumentTypeError):
             parse_percent(bad)
+
+
+def test_parse_webp_quality():
+    assert parse_webp_quality("80") == 80
+    assert parse_webp_quality("100") == 100
+    assert parse_webp_quality("1") == 1
+    for bad in ("x", "0", "101", "-5"):
+        with pytest.raises(argparse.ArgumentTypeError):
+            parse_webp_quality(bad)
 
 
 @pytest.mark.parametrize("flag", ["-height", "--height", "-H"])
@@ -105,6 +115,15 @@ def test_write_failure_returns_1(src, monkeypatch, capsys):
     assert "error" in capsys.readouterr().err
 
 
+def test_keyboard_interrupt_returns_130(src, monkeypatch, capsys):
+    def interrupt(*a, **k):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr("imgscaleandexport.cli.process_image", interrupt)
+    assert main([str(src), "-H", "10"]) == 130
+    assert "aborted by user" in capsys.readouterr().err
+
+
 @pytest.mark.parametrize("flag", ["-jpg-percent", "--jpg-percent"])
 def test_jpg_percent_flag_implies_jpg(src, tmp_path, flag, capsys):
     out = tmp_path / "pct_out"
@@ -117,17 +136,64 @@ def test_jpg_percent_flag_implies_jpg(src, tmp_path, flag, capsys):
 
 def test_jpg_percent_and_quality_mutually_exclusive(src):
     with pytest.raises(SystemExit) as e:
-        main([str(src), "-W", "100", "-quality", "85", "-jpg-percent", "10"])
+        main([str(src), "-W", "100", "-jpg-quality", "85", "-jpg-percent", "10"])
     assert e.value.code == 2
+
+
+@pytest.mark.parametrize("flag", ["-jpg-quality", "--jpg-quality"])
+def test_jpg_quality_flag_implies_jpg(src, tmp_path, flag, capsys):
+    out = tmp_path / f"jpg_q_out_{flag.strip('-')}"
+    code = main([str(src), "-W", "100", flag, "85", "-output", str(out)])
+    assert code == 0
+    assert (out / "Pic_100pxW.jpg").exists()
+    assert (out / "Pic_100pxW.png").exists()
+    assert "Pic_100pxW.jpg (Q=85)" in capsys.readouterr().out
 
 
 def test_cli_jpg_stdout_reports_quality(src, tmp_path, capsys):
     out = tmp_path / "q_report"
-    code = main([str(src), "-W", "100", "-jpg", "-quality", "85", "-output", str(out)])
+    code = main([str(src), "-W", "100", "-jpg", "-jpg-quality", "85", "-output", str(out)])
     assert code == 0
     captured = capsys.readouterr().out
     assert "Pic_100pxW.png" in captured
     assert "Pic_100pxW.jpg (Q=85)" in captured
+
+
+@pytest.mark.parametrize("flag", ["-q", "-quality", "--quality"])
+def test_removed_quality_flags_rejected(src, flag):
+    with pytest.raises(SystemExit) as e:
+        main([str(src), "-W", "100", flag, "85"])
+    assert e.value.code == 2
+
+
+@pytest.mark.parametrize("flag", ["-webp", "--webp"])
+def test_webp_flag(src, tmp_path, flag, capsys):
+    out = tmp_path / f"webp_out_{flag.strip('-')}"
+    code = main([str(src), "-W", "100", flag, "-output", str(out)])
+    assert code == 0
+    assert (out / "Pic_100pxW.webp").exists()
+    assert (out / "Pic_100pxW.png").exists()
+    assert "Pic_100pxW.webp (Q=80)" in capsys.readouterr().out
+
+
+def test_webp_quality_flag_implies_webp(src, tmp_path, capsys):
+    out = tmp_path / "webp_q_out"
+    code = main([str(src), "-W", "100", "-webp-quality", "75", "-output", str(out)])
+    assert code == 0
+    assert (out / "Pic_100pxW.webp").exists()
+    assert "Pic_100pxW.webp (Q=75)" in capsys.readouterr().out
+
+
+def test_jpg_and_webp_together(src, tmp_path, capsys):
+    out = tmp_path / "both_out"
+    code = main([str(src), "-W", "100", "-jpg", "-webp", "-output", str(out)])
+    assert code == 0
+    assert (out / "Pic_100pxW.png").exists()
+    assert (out / "Pic_100pxW.jpg").exists()
+    assert (out / "Pic_100pxW.webp").exists()
+    captured = capsys.readouterr().out
+    assert "Pic_100pxW.jpg (Q=90)" in captured
+    assert "Pic_100pxW.webp (Q=80)" in captured
 
 
 @pytest.mark.parametrize("flag", ["-S", "-standard", "--standard"])
@@ -144,7 +210,7 @@ def test_standard_flag(src, tmp_path, flag, capsys):
 
 def test_standard_flag_custom_quality(src, tmp_path):
     out = tmp_path / "std_custom_q"
-    code = main([str(src), "--standard", "-quality", "80", "-output", str(out)])
+    code = main([str(src), "--standard", "-jpg-quality", "80", "-output", str(out)])
     assert code == 0
     assert (out / "Pic_720pxH.jpg").exists()
 

@@ -197,4 +197,31 @@ def test_process_image_jpg_percent_when_png_not_on_disk(src, tmp_path, monkeypat
     assert results[1].quality is not None
 
 
+def test_webp_as_source_input(tmp_path):
+    src = tmp_path / "Source-001.webp"
+    Image.new("RGBA", (400, 200), (0, 255, 0, 128)).save(src, format="WEBP")
+    results = process_image(src, "W", [100], to_webp=True, to_jpg=True)
+    assert [r.status for r in results] == ["written", "written", "written"]
+    png_out = src.parent / "Source-001_100pxW.png"
+    jpg_out = src.parent / "Source-001_100pxW.jpg"
+    webp_out = src.parent / "Source-001_100pxW.webp"
+    assert png_out.exists() and jpg_out.exists() and webp_out.exists()
+    with Image.open(webp_out) as im:
+        assert im.format == "WEBP"
+        assert im.size == (100, 50)
+        assert im.mode == "RGBA"
+
+
+def test_never_overwrites_webp_source(tmp_path, monkeypatch):
+    path = tmp_path / "source.webp"
+    Image.new("RGB", (100, 50)).save(path, format="WEBP")
+    before = path.read_bytes()
+    monkeypatch.setattr(core, "build_output_name", lambda *args: "source.webp")
+    res = process_image(path, "W", [100], to_webp=True, overwrite=True)
+    webp_res = [r for r in res if r.path.suffix == ".webp"][0]
+    assert webp_res.status == "skipped"
+    assert path.read_bytes() == before
+
+
+
 

@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from .core import (
+    DEFAULT_WEBP_QUALITY,
     FILTERS,
     STANDARD_HEIGHTS,
     STANDARD_JPG_PERCENT,
@@ -100,6 +101,17 @@ def parse_percent(value: str) -> float:
     return percent
 
 
+def parse_webp_quality(value: str) -> int:
+    """Validate WebP quality (1-100)."""
+    try:
+        quality = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"invalid quality {value!r}") from None
+    if not 1 <= quality <= 100:
+        raise argparse.ArgumentTypeError("quality must be between 1 and 100")
+    return quality
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser.
 
@@ -111,7 +123,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = _BannerArgumentParser(
         prog=PROG,
         description="Proportionally resize a lossless source image and "
-        "optionally convert it to JPG.",
+        "optionally convert it to JPG or WebP.",
         allow_abbrev=False,
     )
     parser.add_argument(
@@ -142,13 +154,23 @@ def build_parser() -> argparse.ArgumentParser:
 
     jpg_quality_group = parser.add_mutually_exclusive_group()
     jpg_quality_group.add_argument(
-        "-q", "-quality", "--quality", dest="quality", type=parse_quality,
-        default=None, metavar="N", help="JPG quality 1-95 (default: 90)",
+        "-jpg-quality", "--jpg-quality", dest="quality", type=parse_quality,
+        default=None, metavar="N", help="JPG quality 1-95 (default: 90; implies -jpg)",
     )
     jpg_quality_group.add_argument(
         "-jpg-percent", "--jpg-percent", "-jpgpercent", "--jpgpercent",
         dest="jpg_percent", type=parse_percent, default=None, metavar="PCT",
         help="target JPG file size as a percentage of PNG size (auto-selects quality 30-95; implies -jpg)",
+    )
+
+    parser.add_argument(
+        "-webp", "--webp", dest="webp", action="store_true",
+        help="also convert each resized image to WebP",
+    )
+    parser.add_argument(
+        "-webp-quality", "--webp-quality", dest="webp_quality",
+        type=parse_webp_quality, default=None, metavar="N",
+        help=f"WebP quality 1-100 (default: {DEFAULT_WEBP_QUALITY}; implies -webp)",
     )
 
     parser.add_argument(
@@ -173,8 +195,8 @@ def main(argv: list[str] | None = None) -> int:
     """CLI entry point.
 
     Returns:
-        0 on success (including skipped existing files), 1 on any error, and
-        2 for invalid arguments (via argparse).
+        0 on success (including skipped existing files), 1 on any error,
+        2 for invalid arguments (via argparse), and 130 on user cancellation.
     """
     args = build_parser().parse_args(argv)
     resample = FILTERS[args.filter] if args.filter else None
@@ -189,20 +211,27 @@ def main(argv: list[str] | None = None) -> int:
         quality = args.quality if args.quality is not None else 90
     else:
         axis, sizes = ("H", args.height) if args.height else ("W", args.width)
-        to_jpg = args.jpg or (args.jpg_percent is not None)
+        to_jpg = args.jpg or (args.jpg_percent is not None) or (args.quality is not None)
         quality = args.quality if args.quality is not None else 90
         jpg_percent = args.jpg_percent
+
+    to_webp = args.webp or (args.webp_quality is not None)
+    webp_quality = args.webp_quality if args.webp_quality is not None else DEFAULT_WEBP_QUALITY
 
     try:
         results = process_image(
             args.source, axis, sizes,
-            output_dir=args.output, to_jpg=to_jpg, filter_override=resample,
-            overwrite=args.overwrite, quality=quality,
-            jpg_percent=jpg_percent,
+            output_dir=args.output, to_jpg=to_jpg, to_webp=to_webp,
+            filter_override=resample, overwrite=args.overwrite,
+            quality=quality, jpg_percent=jpg_percent,
+            webp_quality=webp_quality,
         )
     except ImgScaleError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
+    except KeyboardInterrupt:
+        print("\naborted by user", file=sys.stderr)
+        return 130
 
     failed = False
     for res in results:

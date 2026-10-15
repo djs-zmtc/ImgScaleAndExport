@@ -149,4 +149,28 @@ def test_standard_flag_custom_quality(src, tmp_path):
     assert (out / "Pic_720pxH.jpg").exists()
 
 
+@pytest.mark.parametrize("flag", ["-h", "--help"])
+def test_help_renders(flag, capsys):
+    with pytest.raises(SystemExit) as e:
+        main([flag])
+    assert e.value.code == 0
+    out = capsys.readouterr().out
+    assert "usage:" in out
+    assert "10% target size" in out
+
+
+def test_help_first_line_is_title_and_version(capsys):
+    import tomllib
+    from pathlib import Path
+
+    from imgscaleandexport.meta import TITLE
+
+    pyproject = Path(__file__).parent.parent / "pyproject.toml"
+    expected = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+    with pytest.raises(SystemExit):
+        main(["--help"])
+    first_line = capsys.readouterr().out.splitlines()[0]
+    assert first_line == f"{TITLE} -- {expected}"
+
+
 

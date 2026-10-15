@@ -14,6 +14,14 @@ from .core import (
     SUPPORTED_SOURCE_FORMATS,
     process_image,
 )
+from .meta import BANNER
+
+
+class _BannerArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser whose ``--help`` output starts with the title banner."""
+
+    def format_help(self) -> str:
+        return f"{BANNER}\n\n{super().format_help()}"
 
 
 def parse_size_list(value: str) -> list[int]:
@@ -73,7 +81,7 @@ def build_parser() -> argparse.ArgumentParser:
     ambiguous with other flags.
     """
     formats = ", ".join(sorted(SUPPORTED_SOURCE_FORMATS))
-    parser = argparse.ArgumentParser(
+    parser = _BannerArgumentParser(
         prog="imgscaleandexport",
         description="Proportionally resize a lossless source image and "
         "optionally convert it to JPG.",
@@ -92,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     group.add_argument(
         "-S", "-standard", "--standard", dest="standard", action="store_true",
-        help="standard preset: resize heights to 240,360,480,720,1080,1440,2160 and convert to JPG with 10% target size",
+        help="standard preset: resize heights to 240,360,480,720,1080,1440,2160 and convert to JPG with 10%% target size",
     )
 
     parser.add_argument(

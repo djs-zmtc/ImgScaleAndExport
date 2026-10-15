@@ -1,6 +1,6 @@
 [project]
 name = "imgscaleandexport"
-version = "0.2.0"
+version = "0.3.0"
 description = "Proportionally resize PNG/WebP images and optionally convert them to JPG or WebP."
 readme = "README.md"
 license = "MIT"

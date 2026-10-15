@@ -274,5 +274,14 @@ def test_cli_main_entry_point(src, monkeypatch):
     assert (src.parent / "Pic_50pxH.png").exists()
 
 
+@pytest.mark.parametrize("ext,fmt", [(".bmp", "BMP"), (".tif", "TIFF"), (".tiff", "TIFF")])
+def test_cli_accepts_bmp_and_tiff_sources(tmp_path, ext, fmt):
+    src = tmp_path / f"Image{ext}"
+    Image.new("RGB", (200, 100), "green").save(src, format=fmt)
+    code = main([str(src), "-W", "50"])
+    assert code == 0
+    assert (tmp_path / "Image_50pxW.png").exists()
+
+
 
 

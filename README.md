@@ -1,7 +1,7 @@
 # ImgScaleAndExport
 
-Proportionally resize a lossless (PNG or WebP) source image to one or more sizes, and optionally convert each result to JPG or WebP.
-Useful for creating multiple sizes of a specific icon, logo or image. Accepts `PNG` or `WebP` as the source image
+Proportionally resize a source image (PNG, WebP, TIFF, or BMP) to one or more sizes, and optionally convert each result to JPG or WebP.
+Useful for creating multiple sizes of a specific icon, logo or image. Accepts `PNG`, `WebP`, `TIFF`, or `BMP` as the source image
 and generates resized `PNG` and optionally `JPG` and `WebP` images.
 
 ## Install / run
@@ -16,7 +16,7 @@ uv run imgscaleandexport Logo.png -W 800,400 -jpg -webp -o out -filter lanczos
 
 | Option | Description |
 |---|---|
-| `source` | Source image (PNG or WebP; see `SUPPORTED_SOURCE_FORMATS` in `core.py`) |
+| `source` | Source image (PNG, WebP, TIFF, BMP; see `SUPPORTED_SOURCE_FORMATS` in `core.py`) |
 | `-H`, `-height`, `--height` | Comma-separated heights (px) — required, exclusive with width and standard |
 | `-W`, `-width`, `--width` | Comma-separated widths (px) — required, exclusive with height and standard |
 | `-S`, `-standard`, `--standard` | Preset shortcut: heights `240,360,480,720,1080,1440,2160` with target size 10% of PNG size |

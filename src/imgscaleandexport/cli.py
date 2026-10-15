@@ -122,7 +122,7 @@ def build_parser() -> argparse.ArgumentParser:
     formats = ", ".join(sorted(SUPPORTED_SOURCE_FORMATS))
     parser = _BannerArgumentParser(
         prog=PROG,
-        description="Proportionally resize a lossless source image and "
+        description="Proportionally resize a source image and "
         "optionally convert it to JPG or WebP.",
         allow_abbrev=False,
     )

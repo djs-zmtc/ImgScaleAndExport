@@ -223,5 +223,44 @@ def test_never_overwrites_webp_source(tmp_path, monkeypatch):
     assert path.read_bytes() == before
 
 
+def test_bmp_as_source_input(tmp_path):
+    src = tmp_path / "Source-001.bmp"
+    Image.new("RGB", (400, 200), (0, 0, 255)).save(src, format="BMP")
+    results = process_image(src, "W", [100], to_webp=True, to_jpg=True)
+    assert [r.status for r in results] == ["written", "written", "written"]
+    png_out = src.parent / "Source-001_100pxW.png"
+    jpg_out = src.parent / "Source-001_100pxW.jpg"
+    webp_out = src.parent / "Source-001_100pxW.webp"
+    assert png_out.exists() and jpg_out.exists() and webp_out.exists()
+    with Image.open(png_out) as im:
+        assert im.format == "PNG"
+        assert im.size == (100, 50)
+
+
+@pytest.mark.parametrize("ext", [".tif", ".tiff"])
+def test_tiff_as_source_input(tmp_path, ext):
+    src = tmp_path / f"Source-001{ext}"
+    Image.new("RGBA", (400, 200), (255, 128, 0, 200)).save(src, format="TIFF")
+    results = process_image(src, "H", [100], to_webp=True, to_jpg=True)
+    assert [r.status for r in results] == ["written", "written", "written"]
+    png_out = src.parent / "Source-001_100pxH.png"
+    jpg_out = src.parent / "Source-001_100pxH.jpg"
+    webp_out = src.parent / "Source-001_100pxH.webp"
+    assert png_out.exists() and jpg_out.exists() and webp_out.exists()
+
+
+def test_cmyk_tiff_as_source_input(tmp_path):
+    src = tmp_path / "Source-cmyk.tif"
+    Image.new("CMYK", (400, 200), (100, 50, 0, 10)).save(src, format="TIFF")
+    results = process_image(src, "W", [100], to_webp=True, to_jpg=True)
+    assert [r.status for r in results] == ["written", "written", "written"]
+    png_out = src.parent / "Source-cmyk_100pxW.png"
+    assert png_out.exists()
+    with Image.open(png_out) as im:
+        assert im.format == "PNG"
+        assert im.mode == "RGB"
+
+
+
 
 

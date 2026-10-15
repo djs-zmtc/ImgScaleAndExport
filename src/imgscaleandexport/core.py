@@ -13,11 +13,13 @@ from .naming import build_output_name
 
 logger = logging.getLogger(__name__)
 
-#: Lossless source formats accepted as input, keyed by file extension
-#: (lower case, with dot) and mapped to the Pillow format name. Add entries
-#: here (e.g. ``".tif": "TIFF"``) to support more lossless formats later.
+#: Supported source formats accepted as input, keyed by file extension
+#: (lower case, with dot) and mapped to the Pillow format name.
 SUPPORTED_SOURCE_FORMATS: dict[str, str] = {
+    ".bmp": "BMP",
     ".png": "PNG",
+    ".tif": "TIFF",
+    ".tiff": "TIFF",
     ".webp": "WEBP",
 }
 
@@ -250,6 +252,9 @@ def process_image(
             original = opened.copy()
     except (OSError, Image.DecompressionBombError) as exc:
         raise ImgScaleError(f"Cannot read '{source}': {exc}") from exc
+
+    if original.mode not in ("1", "L", "LA", "P", "RGB", "RGBA"):
+        original = original.convert("RGBA" if "A" in original.mode else "RGB")
 
     src_dim = original.width if axis == "W" else original.height
     results: list[Result] = []

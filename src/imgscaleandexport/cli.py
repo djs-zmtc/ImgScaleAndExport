@@ -100,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     group.add_argument(
         "-S", "-standard", "--standard", dest="standard", action="store_true",
-        help="standard preset: resize heights to 240,360,480,720,1080,1440,2160 and convert to JPG with 10%% target size",
+        help="standard preset: resize heights to 240,360,480,720,1080,1440,2160 and convert to JPG with target size 10%% of PNG size",
     )
 
     parser.add_argument(

@@ -1,4 +1,4 @@
-"""Integration tests using the real PNG fixtures in ``tests/assets``."""
+"""Integration tests using real image fixtures in ``tests/assets``."""
 
 import runpy
 import shutil
@@ -13,11 +13,13 @@ from imgscaleandexport.core import process_image
 ASSETS = Path(__file__).parent / "assets"
 PHOTO = "Test-Photo-001_300px.png"  # size suffix should be stripped
 CLIPART = "Test-Clipart-003.png"  # plain trailing number must be kept
+TIFF_PHOTO = "Test-Photo_240pxh.tiff"  # suffix _240pxh should be stripped -> Test-Photo
+WEBP_PHOTO = "Test_Photo_002_480px.webp"  # trailing number _002 kept, _480px stripped -> Test_Photo_002
 
 
 @pytest.fixture(params=[PHOTO, CLIPART])
 def asset(request, tmp_path) -> Path:
-    """A writable copy of each asset so the originals are never touched."""
+    """A writable copy of each square PNG asset so the originals are never touched."""
     dest = tmp_path / "in" / request.param
     dest.parent.mkdir()
     shutil.copy(ASSETS / request.param, dest)
@@ -31,6 +33,20 @@ def photo(tmp_path) -> Path:
     return dest
 
 
+@pytest.fixture
+def tiff_asset(tmp_path) -> Path:
+    dest = tmp_path / TIFF_PHOTO
+    shutil.copy(ASSETS / TIFF_PHOTO, dest)
+    return dest
+
+
+@pytest.fixture
+def webp_asset(tmp_path) -> Path:
+    dest = tmp_path / WEBP_PHOTO
+    shutil.copy(ASSETS / WEBP_PHOTO, dest)
+    return dest
+
+
 def _same_pixels(a: Path, b: Path) -> bool:
     with Image.open(a) as ia, Image.open(b) as ib:
         return ia.size == ib.size and ImageChops.difference(
@@ -38,14 +54,26 @@ def _same_pixels(a: Path, b: Path) -> bool:
         ).getbbox() is None
 
 
-def test_assets_exist_and_are_png():
-    for name in (PHOTO, CLIPART):
+def test_assets_exist_and_match_formats():
+    expected = {
+        PHOTO: "PNG",
+        CLIPART: "PNG",
+        TIFF_PHOTO: "TIFF",
+        WEBP_PHOTO: "WEBP",
+    }
+    for name, fmt in expected.items():
         with Image.open(ASSETS / name) as im:
-            assert im.format == "PNG"
+            assert im.format == fmt
 
 
 def test_naming_with_real_files(tmp_path):
-    for name, base in ((PHOTO, "Test-Photo-001"), (CLIPART, "Test-Clipart-003")):
+    cases = (
+        (PHOTO, "Test-Photo-001"),
+        (CLIPART, "Test-Clipart-003"),
+        (TIFF_PHOTO, "Test-Photo"),
+        (WEBP_PHOTO, "Test_Photo_002"),
+    )
+    for name, base in cases:
         src = tmp_path / name
         shutil.copy(ASSETS / name, src)
         process_image(src, "H", [100])
@@ -173,5 +201,78 @@ def test_standard_with_real_asset(photo, tmp_path, capsys):
         png = out / f"Test-Photo-001_{h}pxH.png"
         jpg = out / f"Test-Photo-001_{h}pxH.jpg"
         assert png.exists() and jpg.exists()
+
+
+def test_tiff_asset_processing_and_transparency(tiff_asset, tmp_path):
+    out = tmp_path / "tiff_out"
+    results = process_image(tiff_asset, "H", [120], output_dir=out, to_jpg=True, to_webp=True)
+    assert len(results) == 3
+    assert [r.status for r in results] == ["written", "written", "written"]
+
+    png_path = out / "Test-Photo_120pxH.png"
+    jpg_path = out / "Test-Photo_120pxH.jpg"
+    webp_path = out / "Test-Photo_120pxH.webp"
+
+    with Image.open(png_path) as png_im:
+        assert png_im.format == "PNG"
+        assert png_im.size == (214, 120)
+        assert png_im.mode == "RGBA"
+
+    with Image.open(jpg_path) as jpg_im:
+        assert jpg_im.format == "JPEG"
+        assert jpg_im.size == (214, 120)
+        assert jpg_im.mode == "RGB"
+
+    with Image.open(webp_path) as webp_im:
+        assert webp_im.format == "WEBP"
+        assert webp_im.size == (214, 120)
+        assert webp_im.mode == "RGBA"
+
+
+def test_webp_asset_processing_and_transparency(webp_asset, tmp_path):
+    out = tmp_path / "webp_out"
+    results = process_image(webp_asset, "W", [400], output_dir=out, to_jpg=True, to_webp=True)
+    assert len(results) == 3
+    assert [r.status for r in results] == ["written", "written", "written"]
+
+    png_path = out / "Test_Photo_002_400pxW.png"
+    jpg_path = out / "Test_Photo_002_400pxW.jpg"
+    webp_path = out / "Test_Photo_002_400pxW.webp"
+
+    with Image.open(png_path) as png_im:
+        assert png_im.format == "PNG"
+        assert png_im.size == (400, 225)
+        assert png_im.mode == "RGBA"
+
+    with Image.open(jpg_path) as jpg_im:
+        assert jpg_im.format == "JPEG"
+        assert jpg_im.size == (400, 225)
+        assert jpg_im.mode == "RGB"
+
+    with Image.open(webp_path) as webp_im:
+        assert webp_im.format == "WEBP"
+        assert webp_im.size == (400, 225)
+        assert webp_im.mode == "RGBA"
+
+
+def test_cli_end_to_end_with_tiff_asset(tiff_asset, tmp_path, capsys):
+    out = tmp_path / "tiff_cli"
+    code = main([str(tiff_asset), "-height", "120", "-jpg", "-webp", "-o", str(out)])
+    assert code == 0
+    assert (out / "Test-Photo_120pxH.png").exists()
+    assert (out / "Test-Photo_120pxH.jpg").exists()
+    assert (out / "Test-Photo_120pxH.webp").exists()
+    assert capsys.readouterr().out.count("wrote") == 3
+
+
+def test_cli_end_to_end_with_webp_asset(webp_asset, tmp_path, capsys):
+    out = tmp_path / "webp_cli"
+    code = main([str(webp_asset), "-width", "400", "-jpg", "-webp", "-o", str(out)])
+    assert code == 0
+    assert (out / "Test_Photo_002_400pxW.png").exists()
+    assert (out / "Test_Photo_002_400pxW.jpg").exists()
+    assert (out / "Test_Photo_002_400pxW.webp").exists()
+    assert capsys.readouterr().out.count("wrote") == 3
+
 
 

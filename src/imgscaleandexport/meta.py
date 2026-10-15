@@ -7,6 +7,9 @@ from importlib.metadata import PackageNotFoundError, version
 #: Human-readable program title shown in ``--help`` output.
 TITLE = "Image Scale and Export"
 
+#: Program executable name shown in usage output.
+PROG = "ImgScaleAndExport"
+
 #: Distribution name as declared in ``pyproject.toml``.
 DIST_NAME = "imgscaleandexport"
 
@@ -16,5 +19,5 @@ try:
 except PackageNotFoundError:  # e.g. running from an unpackaged checkout
     VERSION = "unknown"
 
-#: First line of the help output, e.g. ``Image Scale and Export -- 0.2.0``.
+#: Program banner string shown in version and help output, e.g. ``Image Scale and Export -- v0.2.0``.
 BANNER = f"{TITLE} -- v{VERSION}"

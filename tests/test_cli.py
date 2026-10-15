@@ -155,8 +155,10 @@ def test_help_renders(flag, capsys):
         main([flag])
     assert e.value.code == 0
     out = capsys.readouterr().out
-    assert "usage:" in out
-    assert "10% target size" in out
+    assert "Usage: ImgScaleAndExport" in out
+    assert "Positional Arguments:" in out
+    assert "Options:" in out
+    assert "target size 10% of PNG size" in out
 
 
 def test_help_first_line_is_title_and_version(capsys):
@@ -170,7 +172,41 @@ def test_help_first_line_is_title_and_version(capsys):
     with pytest.raises(SystemExit):
         main(["--help"])
     first_line = capsys.readouterr().out.splitlines()[0]
-    assert first_line == f"{TITLE} -- {expected}"
+    assert first_line == f"{TITLE} -- v{expected}"
+
+
+@pytest.mark.parametrize("flag", ["-v", "-version", "--version"])
+def test_version_flag(flag, capsys):
+    from imgscaleandexport.meta import BANNER
+
+    with pytest.raises(SystemExit) as e:
+        main([flag])
+    assert e.value.code == 0
+    out = capsys.readouterr().out
+    assert out.strip() == BANNER
+
+
+@pytest.mark.parametrize("flag", ["-v", "-version", "--version"])
+def test_version_flag_with_arguments(src, flag, capsys):
+    from imgscaleandexport.meta import BANNER
+
+    with pytest.raises(SystemExit) as e:
+        main([str(src), "-height", "100", flag])
+    assert e.value.code == 0
+    out = capsys.readouterr().out
+    assert out.strip() == BANNER
+
+
+@pytest.mark.filterwarnings("ignore::RuntimeWarning")
+def test_cli_main_entry_point(src, monkeypatch):
+    import runpy
+
+    monkeypatch.setattr("sys.argv", ["ImgScaleAndExport", str(src), "-H", "50"])
+    with pytest.raises(SystemExit) as exc:
+        runpy.run_module("imgscaleandexport.cli", run_name="__main__")
+    assert exc.value.code == 0
+    assert (src.parent / "Pic_50pxH.png").exists()
+
 
 
 

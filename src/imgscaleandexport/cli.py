@@ -14,11 +14,35 @@ from .core import (
     SUPPORTED_SOURCE_FORMATS,
     process_image,
 )
-from .meta import BANNER
+from .meta import BANNER, PROG
+
+
+class _TitleCaseHelpFormatter(argparse.HelpFormatter):
+    """HelpFormatter that formats usage and section headings in Titlecase."""
+
+    def add_usage(
+        self,
+        usage: str | None,
+        actions: list[argparse.Action],
+        groups: list[argparse._ArgumentGroup],
+        prefix: str | None = None,
+    ) -> None:
+        if prefix is None:
+            prefix = "Usage: "
+        super().add_usage(usage, actions, groups, prefix)
+
+    def start_section(self, heading: str | None) -> None:
+        if heading:
+            heading = heading.title()
+        super().start_section(heading)
 
 
 class _BannerArgumentParser(argparse.ArgumentParser):
     """ArgumentParser whose ``--help`` output starts with the title banner."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        kwargs.setdefault("formatter_class", _TitleCaseHelpFormatter)
+        super().__init__(*args, **kwargs)
 
     def format_help(self) -> str:
         return f"{BANNER}\n\n{super().format_help()}"
@@ -82,10 +106,15 @@ def build_parser() -> argparse.ArgumentParser:
     """
     formats = ", ".join(sorted(SUPPORTED_SOURCE_FORMATS))
     parser = _BannerArgumentParser(
-        prog="imgscaleandexport",
+        prog=PROG,
         description="Proportionally resize a lossless source image and "
         "optionally convert it to JPG.",
         allow_abbrev=False,
+    )
+    parser.add_argument(
+        "-v", "-version", "--version",
+        action="version",
+        version=BANNER,
     )
     parser.add_argument("source", type=Path, help=f"source image ({formats})")
 

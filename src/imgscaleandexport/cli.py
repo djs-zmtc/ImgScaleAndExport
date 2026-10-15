@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import math
 import sys
 from pathlib import Path
 
@@ -92,8 +93,10 @@ def parse_percent(value: str) -> float:
         percent = float(value)
     except ValueError:
         raise argparse.ArgumentTypeError(f"invalid percentage {value!r}") from None
-    if percent <= 0:
-        raise argparse.ArgumentTypeError("percentage must be greater than 0")
+    if not math.isfinite(percent) or percent <= 0:
+        raise argparse.ArgumentTypeError(
+            "percentage must be a finite number greater than 0"
+        )
     return percent
 
 

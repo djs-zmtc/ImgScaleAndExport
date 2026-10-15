@@ -39,7 +39,7 @@ def test_parse_filter_and_quality():
 def test_parse_percent():
     assert parse_percent("10") == 10.0
     assert parse_percent("12.5") == 12.5
-    for bad in ("x", "0", "-1"):
+    for bad in ("x", "0", "-1", "nan", "inf", "-inf"):
         with pytest.raises(argparse.ArgumentTypeError):
             parse_percent(bad)
 
